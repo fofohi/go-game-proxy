@@ -75,15 +75,16 @@ func main() {
 	}
 }
 
+
 func handleClientRequest3(client net.Conn) {
 	fmt.Println("come in")
 	if client == nil {
 		return
 	}
 	defer client.Close()
+
 	b := sPool.Get().([]byte)
 	defer sPool.Put(b)
-
 	_, err := client.Read(b)
 
 	if err != nil {
@@ -91,23 +92,19 @@ func handleClientRequest3(client net.Conn) {
 	}
 	var method, host, address string
 
-	num := bytes.IndexByte(b[:], '\n')
-	is443 := true
-	if num == -1 && len(b[:]) > 0 {
-		is443 = false
-	} else {
-		is443 = false
+	num := bytes.IndexByte(b[:], '\r')
+	s := string(b[:num])
+	is443 := s == "443"
+	if num == -1 {
+		return
 	}
 
-	/*hostAndPort := strings.Split(req.URL.Host,":")
-	var oqa string
-	if len(hostAndPort) > 1{
-		oqa = hostAndPort[1]
-	}else{
-		oqa = ""
-	}*/
 	if is443 {
-		s := string(b[:num])
+		b2 := sPool.Get().([]byte)
+		defer sPool.Put(b2)
+		b2 = deSaltByte(b)
+
+		s := string(b2[num+2:])
 		fmt.Sscanf(s, "%s %s %s", &method, &address, &host)
 		server, err := net.Dial("tcp4", address)
 		if err != nil {
@@ -119,21 +116,11 @@ func handleClientRequest3(client net.Conn) {
 		} else {
 			fmt.Println("not connect")
 		}
-		Transport(server, client)
+		transport(server, client)
 	} else {
-		b2 := sPool.Get().([]byte)
-		defer sPool.Put(b2)
-		for k, v := range b {
-			if v == 0 {
-				continue
-			}
-			b2[k] = v ^ 2
-		}
-
-		bnr := bufio.NewReader(bytes.NewReader(b2))
-
+		b2 := deSaltByte(b)
+		bnr := bufio.NewReader(bytes.NewReader(b2[num+2:]))
 		req, err := http.ReadRequest(bnr)
-
 		if err != nil {
 			return
 		}
@@ -147,10 +134,22 @@ func handleClientRequest3(client net.Conn) {
 		} else {
 			defer server.Close()
 			req.Write(server)
-			Transport(server, client)
+			transport(server, client)
 		}
-		fmt.Println("COST TIME ===>", time.Now().Unix()-begin)
+		fmt.Println("COST TIME ===>", time.Now().Unix()- begin)
 	}
+}
+
+func deSaltByte(b []byte) []byte {
+	b2 := sPool.Get().([]byte)
+	defer sPool.Put(b2)
+	for k, v := range b {
+		if v == 0 {
+			continue
+		}
+		b2[k] = v ^ 2
+	}
+	return b2
 }
 
 func GetResponse(server net.Conn, client net.Conn, req *http.Request) *http.Response {
@@ -161,14 +160,14 @@ func GetResponse(server net.Conn, client net.Conn, req *http.Request) *http.Resp
 	return resp
 }
 
-func Transport(rw1, rw2 io.ReadWriter) error {
+func transport(rw1, rw2 io.ReadWriter) error {
 	error0 := make(chan error, 1)
 	go func() {
-		error0 <- CopyBuffer(rw1, rw2)
+		error0 <- copyBuffer(rw1, rw2)
 	}()
 
 	go func() {
-		error0 <- CopyBuffer(rw2, rw1)
+		error0 <- copyBuffer(rw2, rw1)
 	}()
 
 	err := <-error0
@@ -178,7 +177,7 @@ func Transport(rw1, rw2 io.ReadWriter) error {
 	return err
 }
 
-func CopyBuffer(dst io.Writer, src io.Reader) error {
+func copyBuffer(dst io.Writer, src io.Reader) error {
 	buf := lPool.Get().([]byte)
 	defer lPool.Put(buf)
 
