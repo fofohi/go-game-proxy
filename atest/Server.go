@@ -10,19 +10,17 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
-	"strings"
+	"os"
 	"sync"
-	"time"
 )
 
 var (
-	tinyBufferSize   = 512
+	tinyBufferSize   = 4
 	smallBufferSize  = 4 * 1024  // 2KB small buffer
 	mediumBufferSize = 8 * 1024  // 8KB medium buffer
 	largeBufferSize  = 32 * 1024 // 32KB large buffer
 )
 var (
-	mapPool = make(map[string]bytes.Buffer)
 
 	sPool = sync.Pool{
 		New: func() interface{} {
@@ -30,9 +28,9 @@ var (
 		},
 	}
 
-	mPool = sync.Pool{
+	tPool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, mediumBufferSize)
+			return make([]byte, tinyBufferSize)
 		},
 	}
 	lPool = sync.Pool{
@@ -41,6 +39,12 @@ var (
 		},
 	}
 )
+
+func getPoolBig() []byte  {
+	b := lPool.Get().([]byte)
+	defer lPool.Put(b)
+	return b
+}
 
 func GetAddress(u *url.URL) string {
 	host := u.Hostname()
@@ -59,9 +63,13 @@ func main() {
 	/*go func() {
 		http.ListenAndServe("0.0.0.0:18080", nil)
 	}()*/
-
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	l, err := net.Listen("tcp", ":9079")
+	port := ":19077"
+	if len(os.Args) > 1 {
+		port = os.Args[1]
+	}
+
+	l, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -73,8 +81,8 @@ func main() {
 
 		go handleClientRequest3(client)
 	}
-}
 
+}
 
 func handleClientRequest3(client net.Conn) {
 	fmt.Println("come in")
@@ -82,6 +90,7 @@ func handleClientRequest3(client net.Conn) {
 		return
 	}
 	defer client.Close()
+
 
 	b := sPool.Get().([]byte)
 	defer sPool.Put(b)
@@ -91,20 +100,15 @@ func handleClientRequest3(client net.Conn) {
 		return
 	}
 	var method, host, address string
-
-	num := bytes.IndexByte(b[:], '\r')
-	s := string(b[:num])
+	s := string(b[:3])
 	is443 := s == "443"
-	if num == -1 {
-		return
-	}
 
 	if is443 {
 		b2 := sPool.Get().([]byte)
 		defer sPool.Put(b2)
 		b2 = deSaltByte(b)
 
-		s := string(b2[num+2:])
+		s := string(b2[3:])
 		fmt.Sscanf(s, "%s %s %s", &method, &address, &host)
 		server, err := net.Dial("tcp4", address)
 		if err != nil {
@@ -116,10 +120,11 @@ func handleClientRequest3(client net.Conn) {
 		} else {
 			fmt.Println("not connect")
 		}
-		transport(server, client)
+		//transport(server, client)
+		transport(client,server)
 	} else {
-		b2 := deSaltByte(b)
-		bnr := bufio.NewReader(bytes.NewReader(b2[num+2:]))
+    	b2 := deSaltByte(b[3:])
+		bnr := bufio.NewReader(bytes.NewReader(b2[:]))
 		req, err := http.ReadRequest(bnr)
 		if err != nil {
 			return
@@ -128,15 +133,14 @@ func handleClientRequest3(client net.Conn) {
 		if err != nil {
 			return
 		}
-		begin := time.Now().Unix()
-		if strings.HasPrefix(req.URL.Host, "game-a") {
+		/*if strings.HasPrefix(req.URL.Host, "game-a") {
 			_ = GetResponse(server, client, req)
-		} else {
-			defer server.Close()
-			req.Write(server)
-			transport(server, client)
-		}
-		fmt.Println("COST TIME ===>", time.Now().Unix()- begin)
+		} else {*/
+		defer server.Close()
+		req.Write(server)
+		//transport(server, client)
+		transport(client,server)
+		//}
 	}
 }
 

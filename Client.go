@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	flag = "443\r\n"
-	flagN = "80\r\n"
+	flag = "443"
+	flagN ="80$"
 	sslPort = "443"
 )
 
@@ -27,6 +27,7 @@ var (
 	smallBufferSize  = 4 * 1024  // 2KB small buffer
 	mediumBufferSize = 8 * 1024  // 8KB medium buffer
 	largeBufferSize  = 64 * 1024 // 32KB large buffer
+	queue1 = make(chan net.Conn,1)
 )
 var (
 	sPool = sync.Pool{
@@ -46,14 +47,25 @@ var (
 	}
 )
 
+func getPoolSmall() []byte  {
+	b := sPool.Get().([]byte)
+	defer sPool.Put(b)
+	return b
+}
+
+func getPoolBig() []byte  {
+	b := lPool.Get().([]byte)
+	defer lPool.Put(b)
+	return b
+}
+
 func handleClientRequest3(client net.Conn) {
 	if client == nil {
 		return
 	}
 	defer client.Close()
 
-	b := sPool.Get().([]byte)
-	defer sPool.Put(b)
+	b := getPoolSmall()
 	n, err := client.Read(b[:])
 
 	var method, version, address string
@@ -72,16 +84,18 @@ func handleClientRequest3(client net.Conn) {
 
 	if hostPortURL.Opaque == sslPort {
 		address = hostPortURL.Scheme + sslPort
-		if strings.Contains(address,"google") || strings.Contains(address,"twitter") || strings.Contains(address,"dmm") {
-			server, err := net.Dial("tcp", "121.127.253.117:9079")
+		if strings.Contains(address,"twitter") || strings.Contains(address,"twimg") {
+			server, err := net.Dial("tcp", "162.14.8.228:19077")
 			if err != nil {
 				log.Println(err)
 				return
 			}
+
 			b2 := saltByte(b)
 			server.Write([]byte(flag))
 			server.Write(b2[:n])
-			transport(server, client)
+			//transport(server, client)
+			transport(client, server)
 		}else{
 			server, err := net.Dial("tcp", hostPortURL.Scheme + ":" + hostPortURL.Opaque)
 			if err != nil {
@@ -91,7 +105,7 @@ func handleClientRequest3(client net.Conn) {
 			if method == "CONNECT" {
 				fmt.Fprint(client, "HTTP/1.1 200 Connection established\r\n\r\n")
 			}
-			transport(server, client)
+			transport(client, server)
 		}
 	} else {
 		if strings.Index(hostPortURL.Host, ":") == -1 {
@@ -99,7 +113,7 @@ func handleClientRequest3(client net.Conn) {
 		} else {
 			address = hostPortURL.Host
 		}
-		server, err := net.Dial("tcp", "localhost:9079")
+		server, err := net.Dial("tcp", "localhost:19077")
 		if err != nil {
 			log.Println(err)
 			return
@@ -123,6 +137,7 @@ func saltByte(b []byte) []byte {
 	}
 	return b2
 }
+
 
 func transport(rw1, rw2 io.ReadWriter) error {
 	errc := make(chan error, 1)
@@ -151,7 +166,7 @@ func copyBuffer(dst io.Writer, src io.Reader) error {
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	l, err := net.Listen("tcp", ":9078")
+	l, err := net.Listen("tcp", ":9077")
 	if err != nil {
 		log.Panic(err)
 	}
@@ -160,7 +175,6 @@ func main() {
 		if err != nil {
 			log.Panic(err)
 		}
-
 		go handleClientRequest3(client)
 	}
 }
