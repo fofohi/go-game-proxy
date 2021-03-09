@@ -14,6 +14,13 @@ import (
 	"time"
 )
 
+var (
+	cache = make(map[string][]byte,1)
+
+
+)
+
+
 type Connection struct {
 	conn net.Conn
 	s    *Server
@@ -59,6 +66,8 @@ func (server *Connection) serverSide() {
 		host = fmt.Sprint(req.Header.Get("Shost"), ":", req.Header.Get("Sport"))
 	}
 	//log.LOG.Println("try connect real host::" + host)
+
+	//todo cache with nginx
 	// dial remote
 	remote, err = net.DialTimeout("tcp", host, time.Second*5)
 	if err != nil {
@@ -94,7 +103,7 @@ func (server *Connection) serverSide() {
 			return
 		}
 	}
-	pipe(server.conn, remote, server.s.cipher, false)
+	pipe(server.conn, remote, server.s.cipher, false,true)
 }
 
 func (client *Connection) clientSide() {
@@ -132,24 +141,47 @@ func (client *Connection) clientSide() {
 	} else if data != nil {
 		////log.LOG.Println(string(data))
 		// http read bytes to remote
-		ok = client.writeExBytes(data, remote)
-		if !ok {
+		num := bytes.IndexByte(data[:], '\r')
+		if num == -1 {
 			return
+		}
+		s := string(data[:num])
+		var method, version, address string
+		fmt.Sscanf(s, "%s%s%s", &method,&address,&version)
+		if method != "CONNECT" {
+			if strings.Contains(address,"game-a"){
+				//file cache
+				remote2, _ := net.DialTimeout("tcp", "121.127.253.117:11431", time.Second*10)
+				defer remote2.Close()
+				remote2.Write(data)
+				fmt.Println(cache)
+				pipe(client.conn,remote2,nil,true,false)
+				return
+			}else{
+				ok = client.writeExBytes(data, remote)
+				if !ok {
+					return
+				}
+			}
+		}else{
+			ok = client.writeExBytes(data, remote)
+			if !ok {
+				return
+			}
 		}
 	} else {
 		// socks5 ver check failed
 		return
 	}
-	pipe(client.conn, remote, client.s.cipher, true)
+	pipe(client.conn, remote, client.s.cipher, true,true)
 }
 
-func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool) {
+func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool,needEnc bool) {
 	defer func() {
 		_ = local.Close()
 		_ = remote.Close()
 	}()
 	var errChan = make(chan error)
-
 	go func() {
 		buf1 := util.GetMiddlePool()
 		defer util.MPool.Put(buf1)
@@ -163,23 +195,28 @@ func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool) {
 			}
 			// decode
 			var pack []byte
-			if localSide {
-				pack, _ = cp.Decrypt(buf1[:n])
-			} else {
-				pack, _ = cp.Encrypt(buf1[:n])
+			if needEnc {
+				if localSide {
+					pack, _ = cp.Decrypt(buf1[:n])
+				} else {
+					pack, _ = cp.Encrypt(buf1[:n])
+				}
+			}else{
+				pack = buf1[:n]
 			}
 		write:
-			wn, err := local.Write(pack)
-			if err != nil {
-				////log.LOG.Println("copy remote to client error ", err)
-				errChan <- err
-			}
-			if wn < len(pack) {
-				pack = pack[n:]
-				goto write
+			{
+				wn, err := local.Write(pack)
+				if err != nil {
+					////log.LOG.Println("copy remote to client error ", err)
+					errChan <- err
+				}
+				if wn < len(pack) {
+					pack = pack[n:]
+					goto write
+				}
 			}
 		}
-
 	}()
 	go func() {
 		buf2 := util.GetMiddlePool()
@@ -187,17 +224,21 @@ func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool) {
 		for {
 			n, err := local.Read(buf2)
 			if err != nil {
-				//log.LOG.Println("local read error ", err)
+				//fmt.Println("local read error ", err)
 				//log.LOG.Println("local remote addr  ", local.RemoteAddr())
 				errChan <- err
 				break
 			}
 			var pack []byte
 			// encode to remote
-			if localSide {
-				pack, _ = cp.Encrypt(buf2[:n])
-			} else {
-				pack, _ = cp.Decrypt(buf2[:n])
+			if needEnc {
+				if localSide {
+					pack, _ = cp.Encrypt(buf2[:n])
+				} else {
+					pack, _ = cp.Decrypt(buf2[:n])
+				}
+			}else{
+				pack = buf2[:n]
 			}
 		write:
 			wn, err := remote.Write(pack)
@@ -213,7 +254,7 @@ func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool) {
 		}
 	}()
 	err := <-errChan
-	println(err)
+	fmt.Println(err)
 }
 
 func (c *Connection) writeExBytes(data []byte, remote net.Conn) bool {

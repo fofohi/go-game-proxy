@@ -11,7 +11,8 @@ import (
 var (
 	addr     = flag.String("addr", ":9077", "Local hoz listen address")
 	kcp      = flag.Bool("kcp", false, "use kcp protocol")
-	remote   = flag.String("remote", "162.14.8.228:19077", "Remote hoz server address")
+	//remote   = flag.String("remote", "162.14.8.228:19077", "Remote hoz server address")
+	remote   = flag.String("remote", "localhost:19077", "Remote hoz server address")
 	password = flag.String("password", "little://!@adDxS$&(dl/*?QKc$mJ?PdTkajGzSNMILH{t4_hvFR>", "Cipher password string")
 )
 

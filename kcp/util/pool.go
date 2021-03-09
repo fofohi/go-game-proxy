@@ -1,7 +1,6 @@
 package util
 
 import (
-	"github.com/panjf2000/ants/v2"
 	"sync"
 )
 
@@ -19,7 +18,6 @@ var (
 			return make([]byte, mediumBufferSize)
 		},
 	}
-	threadPool,_ = ants.NewPool(100)
 )
 
 
@@ -27,10 +25,6 @@ func GetSmallPool() []byte  {
 	b := SPool.Get().([]byte)
 	defer SPool.Put(b)
 	return b
-}
-
-func GetThreadPool()  *ants.Pool{
-	return threadPool
 }
 
 func GetMiddlePool() []byte  {
