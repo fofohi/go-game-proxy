@@ -1,9 +1,9 @@
 package tun2socks
 
 import (
+	"game-proxy/gotun2socks/packet"
 	"log"
 	"net"
-	"game-proxy/gotun2socks/packet"
 )
 
 type ipPacket struct {

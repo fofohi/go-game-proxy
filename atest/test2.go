@@ -1,15 +1,21 @@
 package main
 
-func test(params *string) string {
-	*params = "test"
+import (
+	"fmt"
+	"os"
+)
 
-	return *params
+var (
+	x = make([]byte, 2, 3)
+)
+
+func main() {
+	appends(x)
+	b2, _ := os.ReadFile("./test")
+	fmt.Println(b2)
 }
-
-type RecordWriter struct {
-}
-
-func (rw RecordWriter) WriteHeader(statusCode *int) *int {
-	*statusCode = 2
-	return statusCode
+func appends(x []byte) int {
+	y := append(x, byte(1), byte(2), byte(1), byte(2), byte(1), byte(2))
+	os.WriteFile("./test", append(y, []byte("test123")...), 0666)
+	return 0
 }

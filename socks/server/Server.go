@@ -9,10 +9,10 @@ import (
 	"sync"
 )
 
-var(
+var (
 	lPool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 10 * 1024)
+			return make([]byte, 10*1024)
 		},
 	}
 )
@@ -53,7 +53,6 @@ func process(client net.Conn) {
 	transport(client, target)
 }
 
-
 func Socks5Auth(client net.Conn) (err error) {
 	buf := make([]byte, 256)
 
@@ -81,7 +80,6 @@ func Socks5Auth(client net.Conn) (err error) {
 
 	return nil
 }
-
 
 func Socks5Connect(client net.Conn) (net.Conn, error) {
 	buf := make([]byte, 256)

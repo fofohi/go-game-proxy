@@ -5,8 +5,6 @@ import (
 	"net"
 )
 
-
-
 func main() {
 	l, err := net.Listen("tcp", ":9078")
 	if err != nil {
@@ -20,7 +18,7 @@ func main() {
 		}
 		go func() {
 			defer c.Close()
-			addr,err := Handshake(c)
+			addr, err := Handshake(c)
 			if err != nil {
 				return
 			}
@@ -29,5 +27,3 @@ func main() {
 	}
 
 }
-
-

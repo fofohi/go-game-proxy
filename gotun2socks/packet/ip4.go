@@ -244,4 +244,3 @@ func (ip *IPv4) Serialize(hdr []byte, dataLen int) error {
 	binary.BigEndian.PutUint16(hdr[10:], ip.Checksum)
 	return nil
 }
-

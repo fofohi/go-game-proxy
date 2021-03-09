@@ -5,14 +5,12 @@ import (
 	"game-proxy/gotun2socks/gosocks"
 	"game-proxy/gotun2socks/packet"
 
+	"github.com/miekg/dns"
 	"log"
 	"net"
 	"strings"
 	"sync"
 	"time"
-	"github.com/miekg/dns"
-
-
 )
 
 type udpPacket struct {

@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-var(
+var (
 	lPool = sync.Pool{
 		New: func() interface{} {
 			return make([]byte, 1024)
@@ -48,9 +48,9 @@ func process(client net.Conn) {
 		client.Close()
 		return
 	}*/
-	x,err := net.Dial("tcp", "121.127.253.117:19077")
+	x, err := net.Dial("tcp", "121.127.253.117:19077")
 	//x,err := net.Dial("tcp", "162.14.8.228:19077")
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 		return
 	}
@@ -65,7 +65,6 @@ func process(client net.Conn) {
 	log.Println(n)
 	transport(client, x)
 }
-
 
 func Socks5Auth(client net.Conn) (err error) {
 	buf := make([]byte, 256)
@@ -94,7 +93,6 @@ func Socks5Auth(client net.Conn) (err error) {
 
 	return nil
 }
-
 
 func Socks5Connect(client net.Conn) (net.Conn, error) {
 	buf := make([]byte, 256)

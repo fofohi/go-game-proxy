@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 )
+
 var (
 	sPool = sync.Pool{
 		New: func() interface{} {
@@ -19,22 +20,22 @@ var (
 		},
 	}
 )
+
 type VpnService interface {
 	Protect(fd int) bool
 }
 
-func ProtectFd(v VpnService,fd int)  bool{
+func ProtectFd(v VpnService, fd int) bool {
 	return v.Protect(fd)
 }
 
-
-func IpDataGet(b []byte,v VpnService)  {
+func IpDataGet(b []byte, v VpnService) {
 	log.Println("begin get byte")
 	log.Println("======================")
 	log.Println("open unix socket")
-	fd,err := unix.Socket(unix.AF_INET6,unix.SOCK_STREAM, unix.IPPROTO_TCP)
+	fd, err := unix.Socket(unix.AF_INET6, unix.SOCK_STREAM, unix.IPPROTO_TCP)
 	log.Println(fd)
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("protect fd")
@@ -43,7 +44,7 @@ func IpDataGet(b []byte,v VpnService)  {
 	address := "121.127.253.117"
 
 	ipStore := [16]byte{}
-	for x,y := range address {
+	for x, y := range address {
 		ipStore[x] = uint8(y)
 	}
 	sa := &unix.SockaddrInet6{
@@ -51,8 +52,8 @@ func IpDataGet(b []byte,v VpnService)  {
 		Port: 11431,
 	}
 	log.Println("connect fd")
-	unixErr := unix.Connect(fd,sa)
-	if unixErr != nil{
+	unixErr := unix.Connect(fd, sa)
+	if unixErr != nil {
 		log.Fatal(unixErr)
 	}
 	log.Println("new file")
@@ -66,6 +67,6 @@ func IpDataGet(b []byte,v VpnService)  {
 		log.Fatal(err)
 	}
 	log.Println("begin write to pc server")
-	n,_ := conn.Write(b)
+	n, _ := conn.Write(b)
 	log.Println(n)
 }
