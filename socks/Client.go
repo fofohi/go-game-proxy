@@ -13,7 +13,7 @@ import (
 var(
 	lPool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 10 * 1024)
+			return make([]byte, 1024)
 		},
 	}
 )
@@ -49,12 +49,20 @@ func process(client net.Conn) {
 		return
 	}*/
 	x,err := net.Dial("tcp", "121.127.253.117:19077")
+	//x,err := net.Dial("tcp", "162.14.8.228:19077")
 	if err != nil{
 		log.Fatal(err)
 		return
 	}
 	defer x.Close()
 	defer client.Close()
+	y := lPool.Get().([]byte)
+	//n,errs := x.Read(y[:])
+	/*if errs != nil {
+		log.Fatal(errs)
+	}*/
+	n, err := io.ReadFull(client, y[:20])
+	log.Println(n)
 	transport(client, x)
 }
 

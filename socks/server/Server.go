@@ -18,7 +18,7 @@ var(
 )
 
 func main() {
-	server, err := net.Listen("tcp", ":19077")
+	server, err := net.Listen("tcp", ":9077")
 	if err != nil {
 		fmt.Printf("Listen failed: %v\n", err)
 		return
