@@ -15,11 +15,9 @@ import (
 )
 
 var (
-	cache = make(map[string][]byte,1)
-
-
+	cache       = make(map[string][]byte, 1)
+	bufferCache = make([]byte, 0, 3)
 )
-
 
 type Connection struct {
 	conn net.Conn
@@ -103,7 +101,7 @@ func (server *Connection) serverSide() {
 			return
 		}
 	}
-	pipe(server.conn, remote, server.s.cipher, false,true)
+	pipe(server.conn, remote, server.s.cipher, false, true)
 }
 
 func (client *Connection) clientSide() {
@@ -147,23 +145,23 @@ func (client *Connection) clientSide() {
 		}
 		s := string(data[:num])
 		var method, version, address string
-		fmt.Sscanf(s, "%s%s%s", &method,&address,&version)
+		fmt.Sscanf(s, "%s%s%s", &method, &address, &version)
 		if method != "CONNECT" {
-			if strings.Contains(address,"game-a"){
+			if strings.Contains(address, "game-a1") {
 				//file cache
 				remote2, _ := net.DialTimeout("tcp", "121.127.253.117:11431", time.Second*10)
 				defer remote2.Close()
 				remote2.Write(data)
 				fmt.Println(cache)
-				pipe(client.conn,remote2,nil,true,false)
+				pipe(client.conn, remote2, nil, true, false)
 				return
-			}else{
+			} else {
 				ok = client.writeExBytes(data, remote)
 				if !ok {
 					return
 				}
 			}
-		}else{
+		} else {
 			ok = client.writeExBytes(data, remote)
 			if !ok {
 				return
@@ -173,10 +171,10 @@ func (client *Connection) clientSide() {
 		// socks5 ver check failed
 		return
 	}
-	pipe(client.conn, remote, client.s.cipher, true,true)
+	pipe(client.conn, remote, client.s.cipher, true, true)
 }
 
-func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool,needEnc bool) {
+func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool, needEnc bool) {
 	defer func() {
 		_ = local.Close()
 		_ = remote.Close()
@@ -201,8 +199,17 @@ func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool,needEnc bool)
 				} else {
 					pack, _ = cp.Encrypt(buf1[:n])
 				}
-			}else{
+			} else {
 				pack = buf1[:n]
+				y := cache["test"]
+
+				if y != nil {
+
+				} else {
+					bufferCache = append(bufferCache, pack...)
+					cache["test"] = bufferCache
+					bufferCache = bufferCache[:0]
+				}
 			}
 		write:
 			{
@@ -237,7 +244,7 @@ func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool,needEnc bool)
 				} else {
 					pack, _ = cp.Decrypt(buf2[:n])
 				}
-			}else{
+			} else {
 				pack = buf2[:n]
 			}
 		write:
