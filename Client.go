@@ -76,6 +76,9 @@ func handleClientRequest3(client net.Conn) {
 	}
 	s := string(b[:num])
 	fmt.Sscanf(s, "%s%s%s", &method,&address,&version)
+	if(!strings.HasPrefix(address,"http://")){
+		address = "http://" + address
+	}
 	hostPortURL, err := url.Parse(address)
 	if err != nil {
 		log.Println(err)
@@ -118,9 +121,9 @@ func handleClientRequest3(client net.Conn) {
 			log.Println(err)
 			return
 		}
-		b2 := saltByte(b)
-		server.Write([]byte(flagN))
-		server.Write(b2[:n])
+		//b2 := saltByte(b)
+		//server.Write([]byte(flagN))
+		server.Write(/*b2[:n]*/b)
 		//进行转发
 		transport(server, client)
 	}

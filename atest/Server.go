@@ -123,8 +123,8 @@ func handleClientRequest3(client net.Conn) {
 		//transport(server, client)
 		transport(client,server)
 	} else {
-    	b2 := deSaltByte(b[3:])
-		bnr := bufio.NewReader(bytes.NewReader(b2[:]))
+    	//b2 := deSaltByte(b[3:])
+		bnr := bufio.NewReader(bytes.NewReader(/*b2[:]*/b))
 		req, err := http.ReadRequest(bnr)
 		if err != nil {
 			return
@@ -133,13 +133,17 @@ func handleClientRequest3(client net.Conn) {
 		if err != nil {
 			return
 		}
+
+
 		/*if strings.HasPrefix(req.URL.Host, "game-a") {
 			_ = GetResponse(server, client, req)
 		} else {*/
 		defer server.Close()
-		req.Write(server)
+		GetResponse(server, client, req)
+		//fmt.Println(x)
+		//req.Write(server)
 		//transport(server, client)
-		transport(client,server)
+		//transport(client,server)
 		//}
 	}
 }
@@ -160,8 +164,24 @@ func GetResponse(server net.Conn, client net.Conn, req *http.Request) *http.Resp
 	defer server.Close()
 	req.Write(server)
 	resp, _ := http.ReadResponse(bufio.NewReader(server), req)
+	if resp == nil{
+		return nil
+	}
 	resp.Write(client)
 	return resp
+}
+
+func GetResponse2(server net.Conn, client net.Conn, req *http.Request) {
+	lock := &sync.RWMutex{}
+	lock.Lock()
+	req.Write(server)
+	resp, _ := http.ReadResponse(bufio.NewReader(server), req)
+	if resp == nil{
+		return
+	}
+	lock.Unlock()
+	resp.Write(client)
+
 }
 
 func transport(rw1, rw2 io.ReadWriter) error {

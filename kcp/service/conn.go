@@ -11,7 +11,6 @@ import (
 	"net/http"
 	//"runtime/debug"
 	"strings"
-	"time"
 )
 
 var (
@@ -67,7 +66,7 @@ func (server *Connection) serverSide() {
 
 	//todo cache with nginx
 	// dial remote
-	remote, err = net.DialTimeout("tcp", host, time.Second*5)
+	remote, err = net.DialTimeout("tcp", host, 50000000000000000)
 	if err != nil {
 		//log.LOG.Printf("dial imeout real remote error %v\n", err)
 		return
@@ -110,7 +109,7 @@ func (client *Connection) clientSide() {
 	if client.s.Config.KCP {
 		remote, err = kcp.DialWithOptions(client.s.RemoteAddr, nil, 10, 3)
 	} else {
-		remote, err = net.DialTimeout("tcp", client.s.RemoteAddr, time.Second*10)
+		remote, err = net.DialTimeout("tcp", client.s.RemoteAddr, 5000000000000000000)
 	}
 	if err != nil {
 		//log.LOG.Printf("net dial failed err %s >> %s\n", err.Error(), client.s.RemoteAddr)
@@ -137,9 +136,13 @@ func (client *Connection) clientSide() {
 			return
 		}
 	} else if data != nil {
+		ok = client.writeExBytes(data, remote)
+		if !ok {
+			return
+		}
 		////log.LOG.Println(string(data))
 		// http read bytes to remote
-		num := bytes.IndexByte(data[:], '\r')
+		/*num := bytes.IndexByte(data[:], '\r')
 		if num == -1 {
 			return
 		}
@@ -166,7 +169,7 @@ func (client *Connection) clientSide() {
 			if !ok {
 				return
 			}
-		}
+		}*/
 	} else {
 		// socks5 ver check failed
 		return
@@ -200,7 +203,7 @@ func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool, needEnc bool
 					pack, _ = cp.Encrypt(buf1[:n])
 				}
 			} else {
-				pack = buf1[:n]
+				/*pack = buf1[:n]
 				y := cache["test"]
 
 				if y != nil {
@@ -209,7 +212,7 @@ func pipe(local, remote net.Conn, cp cipher.Cipher, localSide bool, needEnc bool
 					bufferCache = append(bufferCache, pack...)
 					cache["test"] = bufferCache
 					bufferCache = bufferCache[:0]
-				}
+				}*/
 			}
 		write:
 			{

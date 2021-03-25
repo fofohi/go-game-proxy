@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	smallBufferSize  = 4 * 1024  // 4KB small buffer
+	smallBufferSize  = 5 * 1024  // 4KB small buffer
 	mediumBufferSize = 10 * 1024  // 8KB medium buffer
 
 	SPool = sync.Pool{
