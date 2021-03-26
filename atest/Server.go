@@ -14,31 +14,6 @@ import (
 	"sync"
 )
 
-var (
-	tinyBufferSize   = 4
-	smallBufferSize  = 4 * 1024  // 2KB small buffer
-	mediumBufferSize = 8 * 1024  // 8KB medium buffer
-	largeBufferSize  = 32 * 1024 // 32KB large buffer
-)
-var (
-
-	sPool = sync.Pool{
-		New: func() interface{} {
-			return make([]byte, smallBufferSize)
-		},
-	}
-
-	tPool = sync.Pool{
-		New: func() interface{} {
-			return make([]byte, tinyBufferSize)
-		},
-	}
-	lPool = sync.Pool{
-		New: func() interface{} {
-			return make([]byte, largeBufferSize)
-		},
-	}
-)
 
 func getPoolBig() []byte  {
 	b := lPool.Get().([]byte)
@@ -59,7 +34,7 @@ func GetAddress(u *url.URL) string {
 	return fmt.Sprintf("%s:%s", host, port)
 }
 
-func main() {
+func main3() {
 	/*go func() {
 		http.ListenAndServe("0.0.0.0:18080", nil)
 	}()*/
@@ -184,7 +159,7 @@ func GetResponse2(server net.Conn, client net.Conn, req *http.Request) {
 
 }
 
-func transport(rw1, rw2 io.ReadWriter) error {
+func transport333(rw1, rw2 io.ReadWriter) error {
 	error0 := make(chan error, 1)
 	go func() {
 		error0 <- copyBuffer(rw1, rw2)
@@ -201,7 +176,7 @@ func transport(rw1, rw2 io.ReadWriter) error {
 	return err
 }
 
-func copyBuffer(dst io.Writer, src io.Reader) error {
+func copyBuffer3333(dst io.Writer, src io.Reader) error {
 	buf := lPool.Get().([]byte)
 	defer lPool.Put(buf)
 

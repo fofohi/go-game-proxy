@@ -75,7 +75,7 @@ func (h *HttpHandler) handleRequest(conn net.Conn, req *http.Request) {
 		log.Logf("[http] %s -> %s : %s", conn.RemoteAddr(), conn.LocalAddr(), err)
 	}
 
-	cc, err = net.DialTimeout("tcp","localhost:21503",timeout)
+	cc, err = net.DialTimeout("tcp",host,timeout)
 
 	if err != nil {
 		resp.StatusCode = http.StatusServiceUnavailable
@@ -83,7 +83,6 @@ func (h *HttpHandler) handleRequest(conn net.Conn, req *http.Request) {
 		return
 	}
 	defer cc.Close()
-
 	if req.Method == http.MethodConnect {
 		b := []byte("HTTP/1.1 200 Connection established\r\n" +
 			"Proxy-Agent: gost/" + "1" + "\r\n\r\n")
@@ -105,16 +104,19 @@ func (h *HttpHandler) handleRequest(conn net.Conn, req *http.Request) {
 func (h *HttpHandler) forwardRequest(conn net.Conn, req *http.Request) error {
 	host := req.Host
 
-	cc, err := net.DialTimeout("tcp","localhost:21503",timeout)
+	cc, err := net.DialTimeout("tcp","localhost:19077",timeout)
 	if err != nil {
 		return err
 	}
 	defer cc.Close()
 
 	errc := make(chan error, 1)
+
+	go func() {
+		errc <- copyBuffer(conn, cc)
+	}()
 	go func() {
 		for {
-
 			cc.SetWriteDeadline(time.Now().Add(WriteTimeout))
 			if !req.URL.IsAbs() {
 				req.URL.Scheme = "http" // make sure that the URL is absolute
@@ -134,13 +136,6 @@ func (h *HttpHandler) forwardRequest(conn net.Conn, req *http.Request) error {
 			}
 		}
 	}()
-
-	go func() {
-		errc <- copyBuffer(conn, cc)
-	}()
-
-
-
 	log.Logf("[http] %s <-> %s", conn.RemoteAddr(), host)
 	<-errc
 	log.Logf("[http] %s >-< %s", conn.RemoteAddr(), host)
