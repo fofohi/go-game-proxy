@@ -23,13 +23,10 @@ var serverIP string
 var localPort string
 var serverPort string
 
-
 func main() {
 	localPort = ":9077"
-	//serverIP = "43.242.203.152"
 	//serverPort = "19077"
 
-	serverIP = "222.186.173.147"
 	serverPort = "10107"
 	tcpaddr, err := net.ResolveTCPAddr("tcp4", localPort)
 	if err != nil {
@@ -76,8 +73,6 @@ func handleAClientConn(client *net.TCPConn) {
 		log.Println("tcp地址错误", address, err)
 		return
 	}
-
-
 
 	server, err := net.DialTCP("tcp", nil, tcpaddr)
 	if err != nil {
