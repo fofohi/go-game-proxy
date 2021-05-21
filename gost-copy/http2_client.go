@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 )
@@ -25,6 +26,16 @@ func main() {
 
 func Handle(conn net.Conn) {
 	defer conn.Close()
+	b := make([]byte,10)
+	r := bufio.NewReader(conn)
+	for {
+		_,errs := r.Read(b)
+		if errs == io.EOF{
+			break
+		}
+		fmt.Print(string(b))
+		b = b[:0]
+	}
 
 	req, err := http.ReadRequest(bufio.NewReader(conn))
 	if err != nil {
