@@ -28,8 +28,8 @@ func t4(test1 test1)  {
 	test1.read()
 }
 
-func main()  {
+func main() {
 
 	test2 := &test2{2}
 	t4(test2)
-}
+} 

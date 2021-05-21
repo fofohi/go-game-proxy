@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"crypto/rc4"
 	"fmt"
-	"golang.org/x/net/websocket"
 	"log"
 	"net"
 	"net/http"
@@ -94,11 +93,7 @@ func handleAServerConn(client *net.TCPConn) {
 		log.Println("tcp地址错误", address, err)
 		return
 	}
-	if address == "203.104.248.14:11230"{
-		server,err := websocket.Dial(u.String(), "", "http://"++"/")
-	}else{
-		server, err := net.DialTCP("tcp", nil, tcpaddr)
-	}
+	 server, err := net.DialTCP("tcp", nil, tcpaddr)
 
 
 	if err != nil {

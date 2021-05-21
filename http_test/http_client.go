@@ -32,7 +32,7 @@ var (
 	}
 )
 
-func main()  {
+func main1()  {
 	ln ,err := TcpListener(":9077")
 	if err != nil{
 		return
