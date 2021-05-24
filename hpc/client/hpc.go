@@ -25,9 +25,12 @@ var serverPort string
 
 func main() {
 	localPort = ":9077"
-	//serverPort = "19077"
+	//serverIP = "43.242.203.152"
+	serverIP = "localhost"
+	serverPort = "19077"
 
-	serverPort = "10107"
+	//serverIP = "222.186.173.147"
+	//serverPort = "10107"
 	tcpaddr, err := net.ResolveTCPAddr("tcp4", localPort)
 	if err != nil {
 		fmt.Println("侦听地址错", err)
@@ -79,7 +82,6 @@ func handleAClientConn(client *net.TCPConn) {
 		log.Println("拨号服务器失败", err)
 		return
 	}
-	//defer server.Close()
 	//进行转发,这两句顺序不能倒，否则tcp连接不会自动关掉，会越来越多，只有等系统的tcp,timout到来
 	//才能关闭掉。
 	go psToc.encryptCopy(client, server) //代理服务端发过来的是密文，编码后就成了明文，并传给浏览器

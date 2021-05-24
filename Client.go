@@ -1,33 +1,31 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
+	"github.com/hashicorp/yamux"
 	"io"
 	"log"
 	"net"
-	"net/url"
-	"strings"
 	"sync"
+	"time"
 )
 
 const (
-	flag = "443"
-	flagN ="80$"
+	flag    = "443"
+	flagN   = "80$"
 	sslPort = "443"
 )
 
 const (
 	twitter = "twitter"
-	mbga = "mbga"
+	mbga    = "mbga"
 )
-
 
 var (
 	smallBufferSize  = 4 * 1024  // 2KB small buffer
 	mediumBufferSize = 8 * 1024  // 8KB medium buffer
 	largeBufferSize  = 64 * 1024 // 32KB large buffer
-	queue1 = make(chan net.Conn,1)
+	queue1           = make(chan net.Conn, 1)
 )
 var (
 	sPool = sync.Pool{
@@ -47,20 +45,79 @@ var (
 	}
 )
 
-func getPoolSmall() []byte  {
+func getPoolSmall() []byte {
 	b := sPool.Get().([]byte)
 	defer sPool.Put(b)
 	return b
 }
 
-func getPoolBig() []byte  {
+func getPoolBig() []byte {
 	b := lPool.Get().([]byte)
 	defer lPool.Put(b)
 	return b
 }
+func encryptCopy1(dst *net.TCPConn, src *net.TCPConn) {
+	defer dst.Close()
+	defer src.Close()
+	buf := make([]byte, 4096)
+	var err error
+	n := 0
+	for n, err = src.Read(buf); err == nil && n > 0; n, err = src.Read(buf) {
+		//5秒无数据传输就断掉连接
+		dst.SetDeadline(time.Now().Add(time.Second * 5))
+		src.SetDeadline(time.Now().Add(time.Second * 5))
+		dst.Write(buf[:n])
+	}
 
-func handleClientRequest3(client net.Conn) {
-	if client == nil {
+}
+
+func encryptCopy2(dst *net.TCPConn, src *net.TCPConn) {
+	defer dst.Close()
+	defer src.Close()
+	buf := make([]byte, 4096)
+	var err error
+	n := 0
+	for n, err = src.Read(buf); err == nil && n > 0; n, err = src.Read(buf) {
+		//5秒无数据传输就断掉连接
+		dst.SetDeadline(time.Now().Add(time.Second * 5))
+		src.SetDeadline(time.Now().Add(time.Second * 5))
+		dst.Write(buf[:n])
+	}
+
+}
+
+func encryptCopy3(dst io.ReadWriter, src io.ReadWriter) {
+	buf := make([]byte, 4096)
+	var err error
+	n := 0
+	for n, err = src.Read(buf); err == nil && n > 0; n, err = src.Read(buf) {
+		//5秒无数据传输就断掉连接
+		dst.Write(buf[:n])
+	}
+
+}
+
+func handleClientRequest3(client *net.TCPConn) {
+	tcpaddr, err := net.ResolveTCPAddr("tcp4", "localhost:19077")
+	if err != nil {
+		log.Println("tcp地址错误", "address", err)
+		return
+	}
+	server, err := net.DialTCP("tcp", nil, tcpaddr)
+	session, err := yamux.Client(server, nil)
+
+	stream, err := session.Open()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	//b2 := saltByte(b)
+	//server.Write([]byte(flagN))
+	//go encryptCopy1(client, server) //代理服务端发过来的是密文，编码后就成了明文，并传给浏览器
+	//go encryptCopy2(server, client) //客户端收到的是明文，编码后就成了密文并传给代理的服务端
+	go encryptCopy3(client, stream)
+	go encryptCopy3(stream, client)
+	/*if client == nil {
 		return
 	}
 	defer client.Close()
@@ -116,17 +173,21 @@ func handleClientRequest3(client net.Conn) {
 		} else {
 			address = hostPortURL.Host
 		}
-		server, err := net.Dial("tcp", "localhost:19077")
+		tcpaddr, err := net.ResolveTCPAddr("tcp4", "localhost:19077")
+		if err != nil {
+			log.Println("tcp地址错误", address, err)
+			return
+		}
+		server, err := net.DialTCP("tcp", nil,tcpaddr)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 		//b2 := saltByte(b)
 		//server.Write([]byte(flagN))
-		server.Write(/*b2[:n]*/b)
-		//进行转发
-		transport(server, client)
-	}
+		go encryptCopy(client, server) //代理服务端发过来的是密文，编码后就成了明文，并传给浏览器
+		go encryptCopy(server, client) //客户端收到的是明文，编码后就成了密文并传给代理的服务端
+	}*/
 }
 
 func saltByte(b []byte) []byte {
@@ -140,7 +201,6 @@ func saltByte(b []byte) []byte {
 	}
 	return b2
 }
-
 
 func transport(rw1, rw2 io.ReadWriter) error {
 	errc := make(chan error, 1)
@@ -169,12 +229,17 @@ func copyBuffer(dst io.Writer, src io.Reader) error {
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	l, err := net.Listen("tcp", ":9077")
+	tcpaddr, err := net.ResolveTCPAddr("tcp4", ":9077")
+	if err != nil {
+		fmt.Println("侦听地址错", err)
+		return
+	}
+	l, err := net.ListenTCP("tcp", tcpaddr)
 	if err != nil {
 		log.Panic(err)
 	}
 	for {
-		client, err := l.Accept()
+		client, err := l.AcceptTCP()
 		if err != nil {
 			log.Panic(err)
 		}

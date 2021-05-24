@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/go-log/log v0.2.0
+	github.com/hashicorp/yamux v0.0.0-20210316155119-a95892c5f864 // indirect
 	github.com/klauspost/reedsolomon v1.9.11 // indirect
 	github.com/miekg/dns v1.1.40
 	github.com/pkg/errors v0.9.1 // indirect
