@@ -1,33 +1,32 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"net/url"
+	"net/http"
 	"strings"
 	"sync"
 )
 
 const (
-	flag = "443"
-	flagN ="80$"
+	flag    = "443"
+	flagN   = "80$"
 	sslPort = "443"
 )
 
 const (
 	twitter = "twitter"
-	mbga = "mbga"
+	mbga    = "mbga"
 )
-
 
 var (
 	smallBufferSize  = 4 * 1024  // 2KB small buffer
 	mediumBufferSize = 8 * 1024  // 8KB medium buffer
 	largeBufferSize  = 64 * 1024 // 32KB large buffer
-	queue1 = make(chan net.Conn,1)
+	queue1           = make(chan net.Conn, 1)
 )
 var (
 	sPool = sync.Pool{
@@ -47,13 +46,13 @@ var (
 	}
 )
 
-func getPoolSmall() []byte  {
+func getPoolSmall() []byte {
 	b := sPool.Get().([]byte)
 	defer sPool.Put(b)
 	return b
 }
 
-func getPoolBig() []byte  {
+func getPoolBig() []byte {
 	b := lPool.Get().([]byte)
 	defer lPool.Put(b)
 	return b
@@ -65,27 +64,44 @@ func handleClientRequest3(client net.Conn) {
 	}
 	defer client.Close()
 
-	b := getPoolSmall()
-	n, err := client.Read(b[:])
+	b := make([]byte, 4096)
+	r := bufio.NewReader(client)
 
-	var method, version, address string
+	n, errors := r.Read(b)
 
-	num := bytes.IndexByte(b[:], '\r')
-	if num == -1 {
-		return
+	if errors != nil {
+		fmt.Println(errors)
+		fmt.Println(n)
 	}
-	s := string(b[:num])
-	fmt.Sscanf(s, "%s%s%s", &method,&address,&version)
-	if(!strings.HasPrefix(address,"http://")){
-		address = "http://" + address
-	}
-	hostPortURL, err := url.Parse(address)
+	bfr := bufio.NewReader(strings.NewReader(string(b)))
+	req, err := http.ReadRequest(bfr)
+
 	if err != nil {
-		log.Println(err)
-		return
+		fmt.Println(err)
+	}
+	var address string
+	if req.Method == "CONNECT" {
+		client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+	}
+	hostPort := strings.Split(req.Host, ":")
+	if len(hostPort) < 2 {
+		address = hostPort[0] + ":80"
+	} else {
+		address = req.Host
 	}
 
-	if hostPortURL.Opaque == sslPort {
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", address)
+	if err != nil {
+		log.Println("tcp地址错误", address, err)
+		return
+	}
+	server, err := net.DialTCP("tcp", nil, tcpAddr)
+
+	go server.Write(b)
+
+	transport(server, client)
+
+	/*if hostPortURL.Opaque == sslPort {
 		address = hostPortURL.Scheme + sslPort
 		if strings.Contains(address,"twitter") || strings.Contains(address,"twimg") {
 			server, err := net.Dial("tcp", "162.14.8.228:19077")
@@ -123,10 +139,10 @@ func handleClientRequest3(client net.Conn) {
 		}
 		//b2 := saltByte(b)
 		//server.Write([]byte(flagN))
-		server.Write(/*b2[:n]*/b)
+		server.Write(b2[:n])
 		//进行转发
 		transport(server, client)
-	}
+	}*/
 }
 
 func saltByte(b []byte) []byte {
@@ -140,7 +156,6 @@ func saltByte(b []byte) []byte {
 	}
 	return b2
 }
-
 
 func transport(rw1, rw2 io.ReadWriter) error {
 	errc := make(chan error, 1)
