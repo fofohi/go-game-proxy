@@ -15,12 +15,14 @@ import (
 )
 
 var pws = "helloworld"
+
 type Rc4 struct {
 	C *rc4.Cipher
 }
 
 var port string
 var httpLen int = 4096
+
 func main() {
 
 	port = ":19077"
@@ -93,8 +95,7 @@ func handleAServerConn(client *net.TCPConn) {
 		log.Println("tcp地址错误", address, err)
 		return
 	}
-	 server, err := net.DialTCP("tcp", nil, tcpaddr)
-
+	server, err := net.DialTCP("tcp", nil, tcpaddr)
 
 	if err != nil {
 		log.Println(err)
@@ -110,7 +111,7 @@ func handleAServerConn(client *net.TCPConn) {
 	//接下来得到的都是还没有解密的信息，进行解密转发
 	go pcTos.encryptCopy(server, client) //服务端收到的是密文，编码后就成了明文并传给web
 	psToc.encryptCopy(client, server)    //web发过来的是明文，编码后就成了密文，并传给客户端
-	server.Close()  //这句倒是否是必要的？？？？
+	server.Close()                       //这句倒是否是必要的？？？？
 }
 
 func deCodereadSplitString(r *net.TCPConn, coder *Rc4, delim []byte) []byte {
