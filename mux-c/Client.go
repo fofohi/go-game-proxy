@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/hashicorp/yamux"
 	"io"
 	"log"
 	"net"
@@ -85,6 +86,17 @@ func encryptCopy2(dst *net.TCPConn, src *net.TCPConn) {
 
 }
 
+func encryptCopy3(dst io.ReadWriter, src io.ReadWriter) {
+	buf := make([]byte, 4096)
+	var err error
+	n := 0
+	for n, err = src.Read(buf); err == nil && n > 0; n, err = src.Read(buf) {
+		//5秒无数据传输就断掉连接
+		dst.Write(buf[:n])
+	}
+
+}
+
 func handleClientRequest3(client *net.TCPConn) {
 	tcpaddr, err := net.ResolveTCPAddr("tcp4", "localhost:19077")
 	if err != nil {
@@ -92,14 +104,19 @@ func handleClientRequest3(client *net.TCPConn) {
 		return
 	}
 	server, err := net.DialTCP("tcp", nil, tcpaddr)
+	session, err := yamux.Client(server, nil)
+
+	stream, err := session.Open()
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	//b2 := saltByte(b)
 	//server.Write([]byte(flagN))
-	go encryptCopy1(client, server) //代理服务端发过来的是密文，编码后就成了明文，并传给浏览器
-	go encryptCopy2(server, client) //客户端收到的是明文，编码后就成了密文并传给代理的服务端
+	//go encryptCopy1(client, server) //代理服务端发过来的是密文，编码后就成了明文，并传给浏览器
+	//go encryptCopy2(server, client) //客户端收到的是明文，编码后就成了密文并传给代理的服务端
+	go encryptCopy3(client, stream)
+	go encryptCopy3(stream, client)
 	/*if client == nil {
 		return
 	}
