@@ -25,9 +25,10 @@ var serverPort string
 
 func main() {
 	localPort = ":9077"
-	serverPort = "19077"
-	serverIP = "localhost"
-	//serverPort = "10107"
+	//serverIP = "localhost"
+	//serverPort = "19077"
+	serverIP = "162.14.14.80"
+	serverPort = "58462"
 	tcpaddr, err := net.ResolveTCPAddr("tcp4", localPort)
 	if err != nil {
 		fmt.Println("侦听地址错", err)
