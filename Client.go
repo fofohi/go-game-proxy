@@ -6,8 +6,10 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
 	"strings"
+
+	/*"net/http"
+	"strings"*/
 	"sync"
 )
 
@@ -57,25 +59,61 @@ func getPoolBig() []byte {
 	defer lPool.Put(b)
 	return b
 }
+func parseRequestLine(line string) (method, requestURI, proto string, ok bool) {
+	s1 := strings.Index(line, " ")
+	s2 := strings.Index(line[s1+1:], " ")
+	if s1 < 0 || s2 < 0 {
+		return
+	}
+	s2 += s1 + 1
+	return line[:s1], line[s1+1 : s2], line[s2+1:], true
+}
 
 func handleClientRequest3(client net.Conn) {
 	if client == nil {
 		return
 	}
 	defer client.Close()
-
-	b := make([]byte, 4096)
 	r := bufio.NewReader(client)
+	_, is, e := r.ReadLine()
 
-	n, errors := r.Read(b)
-
-	if errors != nil {
-		fmt.Println(errors)
-		fmt.Println(n)
+	if e != nil {
+		fmt.Print(is)
+		return
 	}
-	bfr := bufio.NewReader(strings.NewReader(string(b)))
-	req, err := http.ReadRequest(bfr)
 
+	l2, _, _ := r.ReadLine()
+
+	l2s := string(l2)
+	l2sa := strings.Split(l2s, " ")
+
+	if !strings.Contains(l2sa[1], "granbluefantasy") {
+		return
+	}
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp4", l2sa[1]+":80")
+	if err != nil {
+		log.Println("tcp地址错误", l2sa[1], err)
+		return
+	}
+	server, err := net.DialTCP("tcp", nil, tcpAddr)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	c := getPoolSmall()
+	go func() {
+		for n, erra := r.Read(c); erra == nil && n > 0; n, erra = r.Read(c) {
+			fmt.Println(string(c[:n]))
+			server.Write(c[:n])
+		}
+	}()
+
+	transport(server, client)
+	/*bfr := bufio.NewReader(strings.NewReader(string(b)))
+	req, err := http.ReadRequest(bfr)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -90,16 +128,11 @@ func handleClientRequest3(client net.Conn) {
 		address = req.Host
 	}
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", address)
-	if err != nil {
-		log.Println("tcp地址错误", address, err)
-		return
-	}
-	server, err := net.DialTCP("tcp", nil, tcpAddr)
 
-	go server.Write(b)
 
-	transport(server, client)
+
+	//transport(server, client)
+
 
 	/*if hostPortURL.Opaque == sslPort {
 		address = hostPortURL.Scheme + sslPort
@@ -160,7 +193,9 @@ func saltByte(b []byte) []byte {
 func transport(rw1, rw2 io.ReadWriter) error {
 	errc := make(chan error, 1)
 	go func() {
+
 		errc <- copyBuffer(rw1, rw2)
+
 	}()
 
 	go func() {
